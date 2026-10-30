@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -21,16 +22,20 @@ function ProductCard({ product }) {
   } = useShop();
 
   const [added, setAdded] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState("");
 
   if (!product) return null;
 
   const {
+    _id,
     id,
     name,
     title,
     category = "Technology",
     price = 0,
     originalPrice,
+    oldPrice,
     image,
     rating,
     reviews,
@@ -41,13 +46,20 @@ function ProductCard({ product }) {
 
   const productName = name || title || "NovaCart Product";
 
+  // Always prefer the actual MongoDB ID.
+  const productId = String(_id || id || "");
+
+  // MongoDB ObjectId must contain exactly 24 hexadecimal characters.
+  const isValidMongoId = /^[0-9a-fA-F]{24}$/.test(productId);
+
   const productImage =
     image ||
     "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80";
 
   const numericPrice = Number(price) || 0;
+
   const numericOriginalPrice =
-    Number(originalPrice) || numericPrice;
+    Number(originalPrice ?? oldPrice) || numericPrice;
 
   const hasDiscount = numericOriginalPrice > numericPrice;
 
@@ -59,24 +71,18 @@ function ProductCard({ product }) {
       )
     : 0;
 
-  const productId = id;
-
-  const isAvailable =
-    productId !== undefined &&
-    productId !== null &&
-    productId !== "";
-
   const wishlisted =
+    isValidMongoId &&
     typeof isWishlisted === "function" &&
     isWishlisted(productId);
 
   const cartItem = cart.find(
-    (item) => String(item.id) === String(productId)
+    (item) =>
+      String(item.product?._id || item._id || item.id) ===
+      productId
   );
 
-  const quantityInCart =
-    Number(cartItem?.quantity) ||
-    (cartItem ? 1 : 0);
+  const quantityInCart = Number(cartItem?.quantity) || 0;
 
   const isOutOfStock = Number(stock) <= 0;
 
@@ -86,58 +92,94 @@ function ProductCard({ product }) {
     maximumFractionDigits: 0,
   }).format(numericPrice);
 
-  const formattedOriginalPrice =
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numericOriginalPrice);
+  const formattedOriginalPrice = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(numericOriginalPrice);
 
-  const productDetailsPath = `/product/${productId}`;
+  const productDetailsPath = isValidMongoId
+    ? `/product/${productId}`
+    : "#";
 
-  const handleAddToCart = () => {
-    if (isOutOfStock || !isAvailable) return;
+  const handleAddToCart = async () => {
+    if (adding || isOutOfStock) return;
 
-    addToCart(product);
+    if (!isValidMongoId) {
+      setError("Invalid product ID. Please refresh the shop page.");
+      return;
+    }
 
-    setAdded(true);
+    try {
+      setAdding(true);
+      setError("");
 
-    window.setTimeout(() => {
-      setAdded(false);
-    }, 1500);
+      // Pass the real MongoDB ID to ShopContext.
+      await addToCart({
+        ...product,
+        _id: productId,
+        id: productId,
+      });
+
+      setAdded(true);
+
+      window.setTimeout(() => {
+        setAdded(false);
+      }, 1500);
+    } catch (err) {
+      setError(err.message || "Unable to add product to cart.");
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const handleWishlist = () => {
-    if (!isAvailable) return;
+  const handleWishlist = async () => {
+    if (!isValidMongoId) {
+      setError("Invalid product ID. Please refresh the shop page.");
+      return;
+    }
 
-    toggleWishlist(productId);
+    try {
+      setError("");
+      await toggleWishlist(productId);
+    } catch (err) {
+      setError(err.message || "Unable to update wishlist.");
+    }
   };
 
   return (
     <article className="nova-product-card">
       {/* Product Image */}
       <div className="product-card-image-wrap">
-        <Link
-          to={productDetailsPath}
-          className="product-card-image-link"
-          aria-label={`View ${productName}`}
-          tabIndex={isAvailable ? 0 : -1}
-        >
-          <img
-            className="product-card-image"
-            src={productImage}
-            alt={productName}
-            loading="lazy"
-          />
-        </Link>
+        {isValidMongoId ? (
+          <Link
+            to={productDetailsPath}
+            className="product-card-image-link"
+            aria-label={`View ${productName}`}
+          >
+            <img
+              className="product-card-image"
+              src={productImage}
+              alt={productName}
+              loading="lazy"
+            />
+          </Link>
+        ) : (
+          <div className="product-card-image-link">
+            <img
+              className="product-card-image"
+              src={productImage}
+              alt={productName}
+              loading="lazy"
+            />
+          </div>
+        )}
 
         {/* Badge */}
         {badge && (
           <span
             className={`product-card-badge ${
-              String(badge)
-                .toLowerCase()
-                .includes("sale")
+              String(badge).toLowerCase().includes("sale")
                 ? "badge-sale"
                 : ""
             }`}
@@ -159,25 +201,26 @@ function ProductCard({ product }) {
             wishlisted ? "wishlisted" : ""
           }`}
           onClick={handleWishlist}
-          aria-label={
-            wishlisted
-              ? `Remove ${productName} from wishlist`
-              : `Add ${productName} to wishlist`
-          }
+          disabled={!isValidMongoId}
+          aria-label={`${wishlisted ? "Remove" : "Add"} ${productName} ${
+            wishlisted ? "from" : "to"
+          } wishlist`}
           aria-pressed={Boolean(wishlisted)}
         >
           <FiHeart />
         </button>
 
         {/* Quick View */}
-        <Link
-          to={productDetailsPath}
-          className="product-card-quick-view"
-          aria-label={`View details for ${productName}`}
-        >
-          <FiEye />
-          Quick View
-        </Link>
+        {isValidMongoId && (
+          <Link
+            to={productDetailsPath}
+            className="product-card-quick-view"
+            aria-label={`View details for ${productName}`}
+          >
+            <FiEye />
+            Quick View
+          </Link>
+        )}
 
         {/* Out Of Stock */}
         {isOutOfStock && (
@@ -211,9 +254,13 @@ function ProductCard({ product }) {
 
         {/* Product Title */}
         <h3 className="product-card-title">
-          <Link to={productDetailsPath}>
-            {productName}
-          </Link>
+          {isValidMongoId ? (
+            <Link to={productDetailsPath}>
+              {productName}
+            </Link>
+          ) : (
+            productName
+          )}
         </h3>
 
         {/* Description */}
@@ -251,12 +298,21 @@ function ProductCard({ product }) {
             added ? "product-added" : ""
           }`}
           onClick={handleAddToCart}
-          disabled={isOutOfStock || !isAvailable}
+          disabled={
+            isOutOfStock ||
+            !isValidMongoId ||
+            adding
+          }
         >
           {isOutOfStock ? (
             <>
               <FiShoppingCart />
               Out of Stock
+            </>
+          ) : adding ? (
+            <>
+              <FiShoppingCart />
+              Adding...
             </>
           ) : added ? (
             <>
@@ -276,6 +332,15 @@ function ProductCard({ product }) {
             </>
           )}
         </button>
+
+        {error && (
+          <p
+            className="product-card-error"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
       </div>
     </article>
   );
