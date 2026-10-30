@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -16,8 +17,16 @@ import {
 } from "react-icons/fi";
 
 import { useShop } from "../context/ShopContext";
-import products from "../data/products";
 import "./ProductDetails.css";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  "https://novacart-backend-1.onrender.com/api"
+).replace(/\/$/, "");
+
+function isMongoId(id) {
+  return /^[a-f\d]{24}$/i.test(String(id || ""));
+}
 
 function ProductDetails() {
   const { id } = useParams();
@@ -30,33 +39,127 @@ function ProductDetails() {
     cart = [],
   } = useShop();
 
+  const [product, setProduct] = useState(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
+  const [productError, setProductError] = useState("");
+
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [added, setAdded] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   /*
-   * Find product from URL id.
+   * Fetch the product directly from MongoDB/backend.
    *
-   * String comparison is used because:
-   * - frontend products may have numeric IDs
-   * - backend MongoDB products may have string IDs
+   * IMPORTANT:
+   * We do NOT use ../data/products here.
+   *
+   * The URL id must be the real MongoDB _id.
    */
-  const product = useMemo(() => {
-    if (!id || !Array.isArray(products)) return null;
+  useEffect(() => {
+    let cancelled = false;
 
-    return products.find(
-      (item) => String(item.id) === String(id)
-    );
+    const fetchProduct = async () => {
+      try {
+        setLoadingProduct(true);
+        setProductError("");
+        setProduct(null);
+
+        if (!id) {
+          throw new Error("Product ID is missing.");
+        }
+
+        if (!isMongoId(id)) {
+          throw new Error(
+            "Invalid product ID. Please open the product from the Shop page."
+          );
+        }
+
+        /*
+         * Preferred endpoint:
+         * GET /api/products/:id
+         */
+        const response = await fetch(
+          `${API_URL}/products/${encodeURIComponent(id)}`
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              `Product request failed (${response.status}).`
+          );
+        }
+
+        if (!data.success) {
+          throw new Error(
+            data.message || "Unable to load this product."
+          );
+        }
+
+        const fetchedProduct =
+          data.product || data.data || null;
+
+        if (
+          !fetchedProduct ||
+          !isMongoId(fetchedProduct._id)
+        ) {
+          throw new Error(
+            "The product received from the backend does not have a valid MongoDB ID."
+          );
+        }
+
+        if (!cancelled) {
+          const mongoId = String(fetchedProduct._id);
+
+          setProduct({
+            ...fetchedProduct,
+
+            /*
+             * Keep both fields for compatibility
+             * with existing UI/context code.
+             */
+            _id: mongoId,
+            id: mongoId,
+          });
+        }
+      } catch (error) {
+        console.error(
+          "Product details fetch error:",
+          error
+        );
+
+        if (!cancelled) {
+          setProduct(null);
+          setProductError(
+            error.message ||
+              "Unable to load product details."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingProduct(false);
+        }
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   /*
-   * Reset image and quantity whenever user opens
-   * another product.
+   * Reset image, quantity and added state
+   * whenever user opens another product.
    */
   useEffect(() => {
     setSelectedImage(0);
     setQuantity(1);
     setAdded(false);
+    setAddingToCart(false);
 
     window.scrollTo({
       top: 0,
@@ -65,7 +168,29 @@ function ProductDetails() {
   }, [id]);
 
   /*
-   * Product not found
+   * Loading state
+   */
+  if (loadingProduct) {
+    return (
+      <main className="product-details-page">
+        <div className="product-not-found">
+          <div className="product-not-found-icon">
+            🛍️
+          </div>
+
+          <h1>Loading Product...</h1>
+
+          <p>
+            Please wait while we load the latest product
+            information.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+   * Error / Product not found
    */
   if (!product) {
     return (
@@ -78,8 +203,8 @@ function ProductDetails() {
           <h1>Product Not Found</h1>
 
           <p>
-            Sorry, we couldn't find the product you're
-            looking for.
+            {productError ||
+              "Sorry, we couldn't find the product you're looking for."}
           </p>
 
           <button
@@ -96,6 +221,7 @@ function ProductDetails() {
   }
 
   const {
+    _id,
     id: productId,
     name,
     title,
@@ -103,6 +229,7 @@ function ProductDetails() {
     brand,
     price = 0,
     originalPrice,
+    oldPrice,
     image,
     images,
     rating,
@@ -114,13 +241,24 @@ function ProductDetails() {
     specifications,
   } = product;
 
+  /*
+   * MongoDB _id is the source of truth.
+   */
+  const mongoProductId = String(_id || productId || "");
+
   const productName =
     name || title || "NovaCart Product";
 
   const numericPrice = Number(price) || 0;
 
+  /*
+   * Support both:
+   * originalPrice
+   * oldPrice
+   */
   const numericOriginalPrice =
-    Number(originalPrice) || numericPrice;
+    Number(originalPrice || oldPrice) ||
+    numericPrice;
 
   const hasDiscount =
     numericOriginalPrice > numericPrice;
@@ -133,23 +271,19 @@ function ProductDetails() {
       )
     : 0;
 
-  const numericStock = Number(stock) || 0;
+  const numericStock = Math.max(
+    0,
+    Number(stock) || 0
+  );
 
   const isOutOfStock = numericStock <= 0;
 
   const wishlisted =
     typeof isWishlisted === "function" &&
-    isWishlisted(productId);
+    isWishlisted(mongoProductId);
 
   /*
    * Create image list.
-   *
-   * Supports:
-   * image: "single-image-url"
-   *
-   * OR
-   *
-   * images: ["image1", "image2", "image3"]
    */
   const productImages = useMemo(() => {
     let imageList = [];
@@ -158,7 +292,10 @@ function ProductDetails() {
       imageList = images.filter(Boolean);
     }
 
-    if (image && !imageList.includes(image)) {
+    if (
+      image &&
+      !imageList.includes(image)
+    ) {
       imageList.unshift(image);
     }
 
@@ -171,14 +308,27 @@ function ProductDetails() {
     return imageList;
   }, [image, images]);
 
-  const currentImage =
-    productImages[selectedImage] || productImages[0];
+  /*
+   * Protect selectedImage from going outside
+   * the available image array.
+   */
+  const safeSelectedImage = Math.min(
+    selectedImage,
+    productImages.length - 1
+  );
 
-  const formattedPrice = new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numericPrice);
+  const currentImage =
+    productImages[safeSelectedImage] ||
+    productImages[0];
+
+  const formattedPrice = new Intl.NumberFormat(
+    "en-IN",
+    {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }
+  ).format(numericPrice);
 
   const formattedOriginalPrice =
     new Intl.NumberFormat("en-IN", {
@@ -188,11 +338,15 @@ function ProductDetails() {
     }).format(numericOriginalPrice);
 
   /*
-   * Check whether this product already exists in cart.
+   * Find this product inside cart.
+   *
+   * ShopContext normalizes MongoDB _id
+   * to both id and _id.
    */
   const cartItem = cart.find(
     (item) =>
-      String(item.id) === String(productId)
+      String(item._id || item.id) ===
+      String(mongoProductId)
   );
 
   const quantityInCart =
@@ -200,9 +354,6 @@ function ProductDetails() {
 
   /*
    * Features fallback.
-   *
-   * If products.js already contains features,
-   * those will be displayed.
    */
   const productFeatures = Array.isArray(features)
     ? features
@@ -214,43 +365,102 @@ function ProductDetails() {
       ];
 
   /*
-   * Add product to cart with selected quantity.
+   * Add to Cart
+   *
+   * IMPORTANT:
+   * This now waits for the backend request.
+   *
+   * So UI will NOT show "Added to Cart"
+   * if MongoDB/cart API fails.
    */
-  const handleAddToCart = () => {
-    if (isOutOfStock) return;
+  const handleAddToCart = async () => {
+    if (
+      isOutOfStock ||
+      addingToCart ||
+      !isMongoId(mongoProductId)
+    ) {
+      return;
+    }
 
-    /*
-     * Your ShopContext accepts:
-     * addToCart(product, quantity)
-     */
-    addToCart(product, quantity);
-
-    setAdded(true);
-
-    window.setTimeout(() => {
+    try {
+      setAddingToCart(true);
       setAdded(false);
-    }, 1800);
+
+      await addToCart(
+        {
+          ...product,
+          _id: mongoProductId,
+          id: mongoProductId,
+        },
+        quantity
+      );
+
+      setAdded(true);
+
+      window.setTimeout(() => {
+        setAdded(false);
+      }, 1800);
+    } catch (error) {
+      console.error(
+        "Product details add to cart error:",
+        error
+      );
+
+      /*
+       * ShopContext already stores cartError.
+       * We intentionally don't show a false
+       * "Added to Cart" state.
+       */
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   /*
    * Buy Now
    *
-   * First adds selected quantity to cart,
-   * then takes user to cart.
+   * Wait for successful cart API request
+   * before navigating to Cart.
    */
-  const handleBuyNow = () => {
-    if (isOutOfStock) return;
+  const handleBuyNow = async () => {
+    if (
+      isOutOfStock ||
+      addingToCart ||
+      !isMongoId(mongoProductId)
+    ) {
+      return;
+    }
 
-    addToCart(product, quantity);
+    try {
+      setAddingToCart(true);
 
-    navigate("/cart");
+      await addToCart(
+        {
+          ...product,
+          _id: mongoProductId,
+          id: mongoProductId,
+        },
+        quantity
+      );
+
+      navigate("/cart");
+    } catch (error) {
+      console.error(
+        "Buy now error:",
+        error
+      );
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
   /*
    * Wishlist
    */
   const handleWishlist = () => {
-    toggleWishlist(productId);
+    if (!isMongoId(mongoProductId)) return;
+
+    toggleWishlist(mongoProductId);
   };
 
   /*
@@ -324,9 +534,7 @@ function ProductDetails() {
 
         {/* Main Product Section */}
         <section className="product-main-section">
-          {/* =========================
-              LEFT - PRODUCT IMAGES
-          ========================== */}
+          {/* LEFT - PRODUCT IMAGES */}
           <div className="product-gallery">
             {/* Main Image */}
             <div className="product-main-image-wrapper">
@@ -388,7 +596,7 @@ function ProductDetails() {
                       type="button"
                       key={`${productImage}-${index}`}
                       className={`product-thumbnail ${
-                        selectedImage === index
+                        safeSelectedImage === index
                           ? "active"
                           : ""
                       }`}
@@ -409,9 +617,7 @@ function ProductDetails() {
             )}
           </div>
 
-          {/* =========================
-              RIGHT - PRODUCT INFO
-          ========================== */}
+          {/* RIGHT - PRODUCT INFO */}
           <div className="product-information">
             {/* Category */}
             <div className="product-category">
@@ -578,9 +784,17 @@ function ProductDetails() {
                   added ? "added" : ""
                 }`}
                 onClick={handleAddToCart}
-                disabled={isOutOfStock}
+                disabled={
+                  isOutOfStock ||
+                  addingToCart
+                }
               >
-                {added ? (
+                {addingToCart ? (
+                  <>
+                    <FiRefreshCw />
+                    Adding...
+                  </>
+                ) : added ? (
                   <>
                     <FiCheck />
                     Added to Cart
@@ -597,9 +811,14 @@ function ProductDetails() {
                 type="button"
                 className="product-buy-now-btn"
                 onClick={handleBuyNow}
-                disabled={isOutOfStock}
+                disabled={
+                  isOutOfStock ||
+                  addingToCart
+                }
               >
-                Buy Now
+                {addingToCart
+                  ? "Processing..."
+                  : "Buy Now"}
               </button>
             </div>
 
@@ -655,9 +874,7 @@ function ProductDetails() {
           </div>
         </section>
 
-        {/* =========================
-            SPECIFICATIONS
-        ========================== */}
+        {/* SPECIFICATIONS */}
         {specifications &&
           typeof specifications === "object" &&
           !Array.isArray(specifications) && (
@@ -672,9 +889,7 @@ function ProductDetails() {
                     className="specification-item"
                     key={key}
                   >
-                    <span>
-                      {key}
-                    </span>
+                    <span>{key}</span>
 
                     <strong>
                       {String(value)}
@@ -685,9 +900,7 @@ function ProductDetails() {
             </section>
           )}
 
-        {/* =========================
-            PRODUCT INFORMATION
-        ========================== */}
+        {/* PRODUCT INFORMATION */}
         <section className="product-bottom-info">
           <div>
             <FiTruck />
