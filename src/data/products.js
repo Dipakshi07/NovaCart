@@ -1,7 +1,7 @@
-
 export const products = [
   {
-    id: 1,
+    id: "6ae4ad0a4375d13750b8b347",
+    _id: "6ae4ad0a4375d13750b8b347",
     name: "Nova X Pro",
     category: "Smartphones",
     price: 59999,
@@ -17,7 +17,8 @@ export const products = [
     stock: 25,
   },
   {
-    id: 2,
+    id: "6ae4ad0a4375d13750b8b348",
+    _id: "6ae4ad0a4375d13750b8b348",
     name: "AeroBook Ultra",
     category: "Laptops",
     price: 84999,
@@ -33,7 +34,8 @@ export const products = [
     stock: 18,
   },
   {
-    id: 3,
+    id: "6ae4ad0b4375d13750b8b349",
+    _id: "6ae4ad0b4375d13750b8b349",
     name: "AirBeat Pro",
     category: "Audio",
     price: 8999,
@@ -49,7 +51,8 @@ export const products = [
     stock: 40,
   },
   {
-    id: 4,
+    id: "6ae4ad0b4375d13750b8b34a",
+    _id: "6ae4ad0b4375d13750b8b34a",
     name: "UltraWatch X",
     category: "Wearables",
     price: 12499,
@@ -65,7 +68,8 @@ export const products = [
     stock: 30,
   },
   {
-    id: 5,
+    id: "6ae4ad0b4375d13750b8b34b",
+    _id: "6ae4ad0b4375d13750b8b34b",
     name: "Vision 4K Monitor",
     category: "Monitors",
     price: 29999,
@@ -81,7 +85,8 @@ export const products = [
     stock: 15,
   },
   {
-    id: 6,
+    id: "6ae4ad0b4375d13750b8b34c",
+    _id: "6ae4ad0b4375d13750b8b34c",
     name: "Mecha RGB Keyboard",
     category: "Accessories",
     price: 4499,
@@ -97,7 +102,8 @@ export const products = [
     stock: 50,
   },
   {
-    id: 7,
+    id: "6ae4ad0b4375d13750b8b34d",
+    _id: "6ae4ad0b4375d13750b8b34d",
     name: "Precision Mouse",
     category: "Accessories",
     price: 2499,
@@ -113,7 +119,8 @@ export const products = [
     stock: 45,
   },
   {
-    id: 8,
+    id: "6ae4ad0b4375d13750b8b34e",
+    _id: "6ae4ad0b4375d13750b8b34e",
     name: "SoundBar Elite",
     category: "Audio",
     price: 14999,
