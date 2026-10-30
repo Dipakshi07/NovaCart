@@ -12,7 +12,7 @@ import {
 import "./Login.css";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "https://novacart-backend-1.onrender.com/api";
 
 const Login = () => {
   const navigate = useNavigate();
