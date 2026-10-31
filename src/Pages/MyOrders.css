@@ -1,7 +1,5 @@
-
 /* =========================================
    NOVACART - MY ORDERS PAGE
-   Modern | Premium | Fully Responsive
 ========================================= */
 
 :root {
@@ -16,10 +14,6 @@
   --orders-background: #f5f7fb;
   --orders-white: #ffffff;
 }
-
-/* =========================================
-   MAIN PAGE
-========================================= */
 
 .my-orders-page {
   min-height: 100vh;
@@ -41,9 +35,7 @@
   margin: 0 auto;
 }
 
-/* =========================================
-   PAGE HEADER
-========================================= */
+/* PAGE HEADER */
 
 .orders-header {
   display: flex;
@@ -102,9 +94,7 @@
   box-shadow: 0 7px 18px rgba(37, 99, 235, 0.2);
 }
 
-/* =========================================
-   LOADING
-========================================= */
+/* LOADING */
 
 .orders-loading {
   min-height: 350px;
@@ -132,9 +122,7 @@
   }
 }
 
-/* =========================================
-   ERROR MESSAGE
-========================================= */
+/* ERROR */
 
 .orders-error {
   display: flex;
@@ -165,9 +153,7 @@
   background: #b91c1c;
 }
 
-/* =========================================
-   EMPTY ORDERS
-========================================= */
+/* EMPTY ORDERS */
 
 .empty-orders {
   min-height: 400px;
@@ -210,9 +196,7 @@
   margin: 0 0 22px;
 }
 
-/* =========================================
-   ORDER HISTORY
-========================================= */
+/* ORDER HISTORY */
 
 .orders-list {
   width: 100%;
@@ -241,9 +225,7 @@
   font-weight: 700;
 }
 
-/* =========================================
-   ORDER CARD
-========================================= */
+/* ORDER CARD */
 
 .order-card {
   width: 100%;
@@ -253,8 +235,7 @@
   padding: 25px;
   margin-bottom: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.035);
-  transition: box-shadow 0.25s ease,
-              transform 0.25s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
   overflow: hidden;
 }
 
@@ -263,9 +244,7 @@
   transform: translateY(-2px);
 }
 
-/* =========================================
-   ORDER HEADER
-========================================= */
+/* ORDER HEADER */
 
 .order-card-header {
   display: flex;
@@ -314,9 +293,7 @@
   gap: 9px;
 }
 
-/* =========================================
-   STATUS BADGES
-========================================= */
+/* STATUS BADGES */
 
 .status-badge,
 .payment-badge {
@@ -332,8 +309,8 @@
 
 .status-badge.ordered,
 .status-badge.pending {
-  color: #b45309;
-  background: #fff7e6;
+  color: #15803d;
+  background: #dcfce7;
 }
 
 .status-badge.shipping,
@@ -378,9 +355,7 @@
   background: #eff6ff;
 }
 
-/* =========================================
-   DELIVERY SUMMARY
-========================================= */
+/* DELIVERY SUMMARY */
 
 .order-delivery-summary {
   display: grid;
@@ -426,9 +401,7 @@
   overflow-wrap: anywhere;
 }
 
-/* =========================================
-   TRACKING SECTION
-========================================= */
+/* TRACKING SECTION */
 
 .order-tracking {
   padding: 25px 0 27px;
@@ -495,18 +468,36 @@
   transition: all 0.3s ease;
 }
 
+/* Completed steps */
+
 .tracking-step.completed .tracking-icon {
   background: #dcfce7;
   border-color: #16a34a;
   color: #15803d;
 }
 
-.tracking-step.current .tracking-icon {
-  background: var(--orders-primary);
-  border-color: var(--orders-primary);
-  color: #ffffff;
-  box-shadow: 0 0 0 5px #dbeafe;
+.tracking-step.completed .tracking-content strong {
+  color: #15803d;
 }
+
+.tracking-step.completed .tracking-content span {
+  color: #64748b;
+}
+
+/* Current step */
+
+.tracking-step.current .tracking-icon {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 0 0 5px #dcfce7;
+}
+
+.tracking-step.current .tracking-content strong {
+  color: #15803d;
+}
+
+/* Tracking text */
 
 .tracking-content {
   display: flex;
@@ -523,14 +514,6 @@
   font-weight: 700;
 }
 
-.tracking-step.completed .tracking-content strong {
-  color: #15803d;
-}
-
-.tracking-step.current .tracking-content strong {
-  color: var(--orders-primary);
-}
-
 .tracking-content span {
   max-width: 150px;
   color: #94a3b8;
@@ -539,10 +522,7 @@
   overflow-wrap: anywhere;
 }
 
-.tracking-step.completed .tracking-content span,
-.tracking-step.current .tracking-content span {
-  color: #64748b;
-}
+/* Timeline connector */
 
 .tracking-line {
   position: absolute;
@@ -552,15 +532,14 @@
   top: 20px;
   left: calc(50% + 21px);
   background: #e2e8f0;
+  transition: background 0.3s ease;
 }
 
-.tracking-step.completed .tracking-line {
+.tracking-line.completed {
   background: #16a34a;
 }
 
-/* =========================================
-   CANCELLED ORDER MESSAGE
-========================================= */
+/* CANCELLED ORDER */
 
 .cancelled-order-message {
   display: flex;
@@ -596,9 +575,7 @@
   line-height: 1.5;
 }
 
-/* =========================================
-   ORDER PRODUCTS
-========================================= */
+/* ORDER PRODUCTS */
 
 .order-products {
   padding: 10px 0;
@@ -673,9 +650,7 @@
   color: #111827;
 }
 
-/* =========================================
-   SHIPPING ADDRESS
-========================================= */
+/* SHIPPING ADDRESS */
 
 .order-shipping-address {
   display: flex;
@@ -720,9 +695,7 @@
   color: #334155;
 }
 
-/* =========================================
-   ORDER FOOTER
-========================================= */
+/* ORDER FOOTER */
 
 .order-card-footer {
   display: flex;
@@ -751,9 +724,7 @@
   font-weight: 750;
 }
 
-/* =========================================
-   CANCEL BUTTON
-========================================= */
+/* CANCEL BUTTON */
 
 .cancel-order-btn {
   min-width: 130px;
@@ -780,9 +751,7 @@
   cursor: not-allowed;
 }
 
-/* =========================================
-   TABLET RESPONSIVE
-========================================= */
+/* TABLET RESPONSIVE */
 
 @media (max-width: 900px) {
   .my-orders-page {
@@ -810,9 +779,7 @@
   }
 }
 
-/* =========================================
-   MOBILE RESPONSIVE
-========================================= */
+/* MOBILE RESPONSIVE */
 
 @media (max-width: 600px) {
   .my-orders-page {
@@ -1010,9 +977,7 @@
   }
 }
 
-/* =========================================
-   SMALL MOBILE
-========================================= */
+/* SMALL MOBILE */
 
 @media (max-width: 380px) {
   .my-orders-page {
@@ -1050,9 +1015,7 @@
   }
 }
 
-/* =========================================
-   ACCESSIBILITY
-========================================= */
+/* ACCESSIBILITY */
 
 @media (prefers-reduced-motion: reduce) {
   .my-orders-page *,
