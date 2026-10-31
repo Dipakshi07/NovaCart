@@ -117,13 +117,19 @@ function Home() {
 
   const allProducts = Array.isArray(products) ? products : [];
 
-  // Scroll to Featured Products when URL contains #home-featured-products
+  // Scroll to Featured Products when URL contains #products
   useEffect(() => {
-    if (location.hash === "#home-featured-products") {
+    if (
+      location.pathname === "/" &&
+      (
+        location.hash === "#products" ||
+        location.hash === "#home-featured-products"
+      )
+    ) {
+      let timer;
+
       const scrollToProducts = () => {
-        const section = document.getElementById(
-          "home-featured-products"
-        );
+        const section = document.getElementById("products");
 
         if (section) {
           section.scrollIntoView({
@@ -133,8 +139,8 @@ function Home() {
         }
       };
 
-      // Wait briefly for the Home page to render
-      const timer = setTimeout(scrollToProducts, 150);
+      // Wait for the Home page and products section to render
+      timer = setTimeout(scrollToProducts, 200);
 
       return () => clearTimeout(timer);
     }
@@ -147,14 +153,14 @@ function Home() {
           (Number(b.rating) || 0) - (Number(a.rating) || 0)
       )
       .slice(0, 8);
-  }, []);
+  }, [allProducts]);
 
   const dealProducts = useMemo(() => {
     return [...allProducts]
       .filter((product) => getDiscount(product) > 0)
       .sort((a, b) => getDiscount(b) - getDiscount(a))
       .slice(0, 4);
-  }, []);
+  }, [allProducts]);
 
   const bestDiscount = allProducts.reduce(
     (best, product) => Math.max(best, getDiscount(product)),
@@ -380,7 +386,7 @@ function Home() {
         {/* FEATURED PRODUCTS */}
         <section
           className="home-section home-featured-section"
-          id="home-featured-products"
+          id="products"
         >
           <div className="home-container">
             <div className="home-section-heading">

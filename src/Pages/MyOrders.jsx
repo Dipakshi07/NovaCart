@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -26,6 +27,7 @@ const API_URL = (
   "https://novacart-backend-1.onrender.com/api"
 ).replace(/\/$/, "");
 
+// Format price in Indian currency
 const formatPrice = (amount) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -33,6 +35,7 @@ const formatPrice = (amount) =>
     maximumFractionDigits: 2,
   }).format(Number(amount || 0));
 
+// Format date
 const formatDate = (date) => {
   if (!date) return "Date unavailable";
 
@@ -49,6 +52,7 @@ const formatDate = (date) => {
   });
 };
 
+// Format date and time
 const formatDateTime = (date) => {
   if (!date) return "Date unavailable";
 
@@ -67,7 +71,7 @@ const formatDateTime = (date) => {
   });
 };
 
-// Normalize old statuses
+// Normalize old order statuses
 const normalizeOrderStatus = (status) => {
   const statusMap = {
     Pending: "Ordered",
@@ -78,7 +82,7 @@ const normalizeOrderStatus = (status) => {
   return statusMap[status] || status || "Ordered";
 };
 
-// Calculate expected delivery date
+// Calculate expected delivery date (7 days)
 const getExpectedDeliveryDate = (order) => {
   if (order.expectedDeliveryDate) {
     const savedDate = new Date(order.expectedDeliveryDate);
@@ -101,11 +105,13 @@ const getExpectedDeliveryDate = (order) => {
   return orderDate;
 };
 
+// Generate status CSS class
 const getStatusClass = (status) =>
   String(status || "Pending")
     .toLowerCase()
     .replace(/\s+/g, "-");
 
+// Order tracking steps
 const STATUS_STEPS = [
   {
     key: "Ordered",
@@ -129,11 +135,13 @@ const STATUS_STEPS = [
   },
 ];
 
+// Get current tracking step index
 const getStatusIndex = (status) =>
   STATUS_STEPS.findIndex(
     (step) => step.key === normalizeOrderStatus(status)
   );
 
+// Get tracking date
 const getTrackingDate = (order, status) => {
   if (status === "Ordered") {
     return order.orderedAt || order.createdAt;
@@ -162,8 +170,10 @@ function MyOrders() {
   const [error, setError] = useState("");
   const [cancellingId, setCancellingId] = useState(null);
 
+  // Get login token
   const getToken = () => localStorage.getItem("token");
 
+  // Fetch user orders
   const fetchOrders = useCallback(async () => {
     const token = getToken();
 
@@ -234,6 +244,7 @@ function MyOrders() {
     fetchOrders();
   }, [fetchOrders]);
 
+  // Cancel order
   const handleCancelOrder = async (orderId) => {
     const confirmed = window.confirm(
       "Are you sure you want to cancel this order?"
@@ -274,6 +285,7 @@ function MyOrders() {
     }
   };
 
+  // Loading screen
   if (loading) {
     return (
       <div className="my-orders-page">
@@ -288,6 +300,7 @@ function MyOrders() {
   return (
     <main className="my-orders-page">
       <div className="my-orders-container">
+
         {/* Header */}
         <div className="orders-header">
           <div>
@@ -302,8 +315,9 @@ function MyOrders() {
             </p>
           </div>
 
+          {/* Continue Shopping - Home Products Section */}
           <Link
-            to="/shop"
+            to="/#products"
             className="continue-shopping-btn"
           >
             Continue Shopping
@@ -340,12 +354,18 @@ function MyOrders() {
               products and find something you love.
             </p>
 
-            <Link to="/shop" className="shop-now-btn">
+            {/* Start Shopping - Home Products Section */}
+            <Link
+              to="/#products"
+              className="shop-now-btn"
+            >
               Start Shopping
             </Link>
           </section>
         ) : (
           <section className="orders-list">
+
+            {/* Order Count */}
             <div className="orders-count">
               <h2>Order History</h2>
 
@@ -355,9 +375,12 @@ function MyOrders() {
               </span>
             </div>
 
+            {/* Orders */}
             {orders.map((order) => {
               const orderId = order._id || order.id;
-              const orderItems = order.items || [];
+              const orderItems = Array.isArray(order.items)
+                ? order.items
+                : [];
 
               const currentStatus = normalizeOrderStatus(
                 order.status
@@ -377,9 +400,11 @@ function MyOrders() {
 
               return (
                 <article className="order-card" key={orderId}>
+
                   {/* ORDER HEADER */}
                   <div className="order-card-header">
                     <div className="order-meta">
+
                       <div>
                         <span className="order-label">
                           ORDER ID
@@ -414,6 +439,7 @@ function MyOrders() {
                           {formatPrice(order.totalAmount)}
                         </strong>
                       </div>
+
                     </div>
 
                     <div className="order-status-group">
@@ -437,6 +463,7 @@ function MyOrders() {
 
                   {/* DELIVERY INFORMATION */}
                   <div className="order-delivery-summary">
+
                     <div>
                       <FiCalendar />
 
@@ -471,11 +498,13 @@ function MyOrders() {
                         </strong>
                       </div>
                     </div>
+
                   </div>
 
                   {/* TRACKING TIMELINE */}
                   {!isCancelled && (
                     <div className="order-tracking">
+
                       <div className="tracking-header">
                         <h3>Order Tracking</h3>
                         <span>{currentStatus}</span>
@@ -623,6 +652,7 @@ function MyOrders() {
                   {/* SHIPPING ADDRESS */}
                   {order.shippingAddress && (
                     <div className="order-shipping-address">
+
                       <div className="shipping-address-icon">
                         <FiMapPin />
                       </div>
@@ -654,11 +684,13 @@ function MyOrders() {
                           Phone: {order.shippingAddress.phone}
                         </p>
                       </div>
+
                     </div>
                   )}
 
                   {/* FOOTER */}
                   <div className="order-card-footer">
+
                     <div className="order-payment-info">
                       <span>
                         Payment Method:{" "}
@@ -690,10 +722,13 @@ function MyOrders() {
                           : "Cancel Order"}
                       </button>
                     )}
+
                   </div>
+
                 </article>
               );
             })}
+
           </section>
         )}
       </div>
