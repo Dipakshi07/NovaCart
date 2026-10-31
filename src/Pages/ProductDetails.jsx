@@ -1,6 +1,7 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+
 import {
   FiArrowLeft,
   FiHeart,
@@ -39,6 +40,7 @@ function ProductDetails() {
     cart = [],
   } = useShop();
 
+  // All React hooks are declared before conditional returns.
   const [product, setProduct] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [productError, setProductError] = useState("");
@@ -48,14 +50,7 @@ function ProductDetails() {
   const [added, setAdded] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
 
-  /*
-   * Fetch the product directly from MongoDB/backend.
-   *
-   * IMPORTANT:
-   * We do NOT use ../data/products here.
-   *
-   * The URL id must be the real MongoDB _id.
-   */
+  // Fetch product from backend.
   useEffect(() => {
     let cancelled = false;
 
@@ -71,14 +66,10 @@ function ProductDetails() {
 
         if (!isMongoId(id)) {
           throw new Error(
-            "Invalid product ID. Please open the product from the Shop page."
+            "Invalid product ID. Please open the product from the Products page."
           );
         }
 
-        /*
-         * Preferred endpoint:
-         * GET /api/products/:id
-         */
         const response = await fetch(
           `${API_URL}/products/${encodeURIComponent(id)}`
         );
@@ -87,26 +78,25 @@ function ProductDetails() {
 
         if (!response.ok) {
           throw new Error(
-            data.message ||
-              `Product request failed (${response.status}).`
+            data.message || `Product request failed (${response.status}).`
           );
         }
 
-        if (!data.success) {
-          throw new Error(
-            data.message || "Unable to load this product."
-          );
-        }
-
+        // Support different common backend response formats.
         const fetchedProduct =
-          data.product || data.data || null;
+          data.product ||
+          data.data?.product ||
+          data.data ||
+          data.result ||
+          null;
 
         if (
           !fetchedProduct ||
           !isMongoId(fetchedProduct._id)
         ) {
           throw new Error(
-            "The product received from the backend does not have a valid MongoDB ID."
+            data.message ||
+              "Product not found or backend returned an invalid product ID."
           );
         }
 
@@ -115,26 +105,17 @@ function ProductDetails() {
 
           setProduct({
             ...fetchedProduct,
-
-            /*
-             * Keep both fields for compatibility
-             * with existing UI/context code.
-             */
             _id: mongoId,
             id: mongoId,
           });
         }
       } catch (error) {
-        console.error(
-          "Product details fetch error:",
-          error
-        );
+        console.error("Product details fetch error:", error);
 
         if (!cancelled) {
           setProduct(null);
           setProductError(
-            error.message ||
-              "Unable to load product details."
+            error.message || "Unable to load product details."
           );
         }
       } finally {
@@ -151,10 +132,7 @@ function ProductDetails() {
     };
   }, [id]);
 
-  /*
-   * Reset image, quantity and added state
-   * whenever user opens another product.
-   */
+  // Reset product page state when the URL ID changes.
   useEffect(() => {
     setSelectedImage(0);
     setQuantity(1);
@@ -167,38 +145,29 @@ function ProductDetails() {
     });
   }, [id]);
 
-  /*
-   * Loading state
-   */
+  // Loading state.
   if (loadingProduct) {
     return (
       <main className="product-details-page">
         <div className="product-not-found">
-          <div className="product-not-found-icon">
-            🛍️
-          </div>
+          <div className="product-not-found-icon">🛍️</div>
 
           <h1>Loading Product...</h1>
 
           <p>
-            Please wait while we load the latest product
-            information.
+            Please wait while we load the latest product information.
           </p>
         </div>
       </main>
     );
   }
 
-  /*
-   * Error / Product not found
-   */
+  // Product not found or API error.
   if (!product) {
     return (
       <main className="product-details-page">
         <div className="product-not-found">
-          <div className="product-not-found-icon">
-            🛍️
-          </div>
+          <div className="product-not-found-icon">🛍️</div>
 
           <h1>Product Not Found</h1>
 
@@ -210,16 +179,17 @@ function ProductDetails() {
           <button
             type="button"
             className="back-to-shop-btn"
-            onClick={() => navigate("/shop")}
+            onClick={() => navigate("/products")}
           >
             <FiArrowLeft />
-            Back to Shop
+            Back to Products
           </button>
         </div>
       </main>
     );
   }
 
+  // Product information.
   const {
     _id,
     id: productId,
@@ -241,27 +211,16 @@ function ProductDetails() {
     specifications,
   } = product;
 
-  /*
-   * MongoDB _id is the source of truth.
-   */
   const mongoProductId = String(_id || productId || "");
 
-  const productName =
-    name || title || "NovaCart Product";
+  const productName = name || title || "NovaCart Product";
 
   const numericPrice = Number(price) || 0;
 
-  /*
-   * Support both:
-   * originalPrice
-   * oldPrice
-   */
   const numericOriginalPrice =
-    Number(originalPrice || oldPrice) ||
-    numericPrice;
+    Number(originalPrice || oldPrice) || numericPrice;
 
-  const hasDiscount =
-    numericOriginalPrice > numericPrice;
+  const hasDiscount = numericOriginalPrice > numericPrice;
 
   const discountPercentage = hasDiscount
     ? Math.round(
@@ -271,10 +230,7 @@ function ProductDetails() {
       )
     : 0;
 
-  const numericStock = Math.max(
-    0,
-    Number(stock) || 0
-  );
+  const numericStock = Math.max(0, Number(stock) || 0);
 
   const isOutOfStock = numericStock <= 0;
 
@@ -282,79 +238,58 @@ function ProductDetails() {
     typeof isWishlisted === "function" &&
     isWishlisted(mongoProductId);
 
-  /*
-   * Create image list.
-   */
-  const productImages = useMemo(() => {
-    let imageList = [];
+  // IMPORTANT: No useMemo here.
+  // This is a normal JavaScript calculation, not a React hook.
+  const productImages = [];
 
-    if (Array.isArray(images)) {
-      imageList = images.filter(Boolean);
-    }
+  if (Array.isArray(images)) {
+    productImages.push(...images.filter(Boolean));
+  }
 
-    if (
-      image &&
-      !imageList.includes(image)
-    ) {
-      imageList.unshift(image);
-    }
+  if (image && !productImages.includes(image)) {
+    productImages.unshift(image);
+  }
 
-    if (imageList.length === 0) {
-      imageList.push(
-        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=85"
-      );
-    }
+  if (productImages.length === 0) {
+    productImages.push(
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=85"
+    );
+  }
 
-    return imageList;
-  }, [image, images]);
-
-  /*
-   * Protect selectedImage from going outside
-   * the available image array.
-   */
   const safeSelectedImage = Math.min(
     selectedImage,
     productImages.length - 1
   );
 
   const currentImage =
-    productImages[safeSelectedImage] ||
-    productImages[0];
+    productImages[safeSelectedImage] || productImages[0];
 
-  const formattedPrice = new Intl.NumberFormat(
-    "en-IN",
-    {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }
-  ).format(numericPrice);
+  const formattedPrice = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(numericPrice);
 
-  const formattedOriginalPrice =
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numericOriginalPrice);
+  const formattedOriginalPrice = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(numericOriginalPrice);
 
-  /*
-   * Find this product inside cart.
-   *
-   * ShopContext normalizes MongoDB _id
-   * to both id and _id.
-   */
-  const cartItem = cart.find(
-    (item) =>
-      String(item._id || item.id) ===
-      String(mongoProductId)
-  );
+  // Find the current product in cart.
+  const cartItem = cart.find((item) => {
+    const itemId =
+      item._id ||
+      item.id ||
+      item.product?._id ||
+      item.product?.id;
 
-  const quantityInCart =
-    Number(cartItem?.quantity) || 0;
+    return String(itemId || "") === mongoProductId;
+  });
 
-  /*
-   * Features fallback.
-   */
+  const quantityInCart = Number(cartItem?.quantity) || 0;
+
+  // Features.
   const productFeatures = Array.isArray(features)
     ? features
     : [
@@ -364,15 +299,7 @@ function ProductDetails() {
         "Modern and stylish design",
       ];
 
-  /*
-   * Add to Cart
-   *
-   * IMPORTANT:
-   * This now waits for the backend request.
-   *
-   * So UI will NOT show "Added to Cart"
-   * if MongoDB/cart API fails.
-   */
+  // Add to Cart.
   const handleAddToCart = async () => {
     if (
       isOutOfStock ||
@@ -401,27 +328,13 @@ function ProductDetails() {
         setAdded(false);
       }, 1800);
     } catch (error) {
-      console.error(
-        "Product details add to cart error:",
-        error
-      );
-
-      /*
-       * ShopContext already stores cartError.
-       * We intentionally don't show a false
-       * "Added to Cart" state.
-       */
+      console.error("Product details add to cart error:", error);
     } finally {
       setAddingToCart(false);
     }
   };
 
-  /*
-   * Buy Now
-   *
-   * Wait for successful cart API request
-   * before navigating to Cart.
-   */
+  // Buy Now.
   const handleBuyNow = async () => {
     if (
       isOutOfStock ||
@@ -445,80 +358,53 @@ function ProductDetails() {
 
       navigate("/cart");
     } catch (error) {
-      console.error(
-        "Buy now error:",
-        error
-      );
+      console.error("Buy now error:", error);
     } finally {
       setAddingToCart(false);
     }
   };
 
-  /*
-   * Wishlist
-   */
+  // Wishlist.
   const handleWishlist = () => {
     if (!isMongoId(mongoProductId)) return;
 
     toggleWishlist(mongoProductId);
   };
 
-  /*
-   * Quantity minus
-   */
+  // Quantity controls.
   const decreaseQuantity = () => {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
-    );
+    setQuantity((current) => Math.max(1, current - 1));
   };
 
-  /*
-   * Quantity plus
-   */
   const increaseQuantity = () => {
     setQuantity((current) =>
-      Math.min(
-        numericStock || 99,
-        current + 1
-      )
+      Math.min(numericStock || 99, current + 1)
     );
   };
 
-  /*
-   * Previous image
-   */
+  // Gallery controls.
   const previousImage = () => {
     setSelectedImage((current) =>
-      current === 0
-        ? productImages.length - 1
-        : current - 1
+      current === 0 ? productImages.length - 1 : current - 1
     );
   };
 
-  /*
-   * Next image
-   */
   const nextImage = () => {
     setSelectedImage((current) =>
-      current === productImages.length - 1
-        ? 0
-        : current + 1
+      current === productImages.length - 1 ? 0 : current + 1
     );
   };
 
   return (
     <main className="product-details-page">
       <div className="product-details-container">
+
         {/* Breadcrumb */}
         <div className="product-breadcrumb">
           <Link to="/">Home</Link>
-
           <span>/</span>
-
-          <Link to="/shop">Shop</Link>
-
+          <Link to="/products">Products</Link>
           <span>/</span>
-
           <span>{productName}</span>
         </div>
 
@@ -534,16 +420,15 @@ function ProductDetails() {
 
         {/* Main Product Section */}
         <section className="product-main-section">
+
           {/* LEFT - PRODUCT IMAGES */}
           <div className="product-gallery">
-            {/* Main Image */}
+
             <div className="product-main-image-wrapper">
               {badge && (
                 <span
                   className={`product-details-badge ${
-                    String(badge)
-                      .toLowerCase()
-                      .includes("sale")
+                    String(badge).toLowerCase().includes("sale")
                       ? "sale"
                       : ""
                   }`}
@@ -587,51 +472,41 @@ function ProductDetails() {
               )}
             </div>
 
-            {/* Thumbnail Images */}
+            {/* Thumbnails */}
             {productImages.length > 1 && (
               <div className="product-thumbnails">
-                {productImages.map(
-                  (productImage, index) => (
-                    <button
-                      type="button"
-                      key={`${productImage}-${index}`}
-                      className={`product-thumbnail ${
-                        safeSelectedImage === index
-                          ? "active"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedImage(index)
-                      }
-                    >
-                      <img
-                        src={productImage}
-                        alt={`${productName} ${
-                          index + 1
-                        }`}
-                      />
-                    </button>
-                  )
-                )}
+                {productImages.map((productImage, index) => (
+                  <button
+                    type="button"
+                    key={`${productImage}-${index}`}
+                    className={`product-thumbnail ${
+                      safeSelectedImage === index ? "active" : ""
+                    }`}
+                    onClick={() => setSelectedImage(index)}
+                  >
+                    <img
+                      src={productImage}
+                      alt={`${productName} ${index + 1}`}
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
           {/* RIGHT - PRODUCT INFO */}
           <div className="product-information">
-            {/* Category */}
+
             <div className="product-category">
               {category}
             </div>
 
-            {/* Brand */}
             {brand && (
               <div className="product-brand">
                 Brand: <strong>{brand}</strong>
               </div>
             )}
 
-            {/* Product Name */}
             <h1 className="product-details-title">
               {productName}
             </h1>
@@ -639,16 +514,11 @@ function ProductDetails() {
             {/* Rating */}
             <div className="product-rating-row">
               <div className="product-stars">
-                {Array.from({
-                  length: 5,
-                }).map((_, index) => (
+                {Array.from({ length: 5 }).map((_, index) => (
                   <FiStar
                     key={index}
                     className={
-                      index <
-                      Math.round(
-                        Number(rating) || 0
-                      )
+                      index < Math.round(Number(rating) || 0)
                         ? "star-filled"
                         : ""
                     }
@@ -692,7 +562,6 @@ function ProductDetails() {
             {description && (
               <div className="product-description">
                 <h3>Description</h3>
-
                 <p>{description}</p>
               </div>
             )}
@@ -702,14 +571,12 @@ function ProductDetails() {
               <h3>Key Features</h3>
 
               <ul>
-                {productFeatures.map(
-                  (feature, index) => (
-                    <li key={index}>
-                      <FiCheck />
-                      <span>{feature}</span>
-                    </li>
-                  )
-                )}
+                {productFeatures.map((feature, index) => (
+                  <li key={index}>
+                    <FiCheck />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -761,17 +628,12 @@ function ProductDetails() {
                 <button
                   type="button"
                   className={`product-wishlist-btn ${
-                    wishlisted
-                      ? "wishlisted"
-                      : ""
+                    wishlisted ? "wishlisted" : ""
                   }`}
                   onClick={handleWishlist}
                 >
                   <FiHeart />
-
-                  {wishlisted
-                    ? "Wishlisted"
-                    : "Add to Wishlist"}
+                  {wishlisted ? "Wishlisted" : "Add to Wishlist"}
                 </button>
               </div>
             )}
@@ -784,10 +646,7 @@ function ProductDetails() {
                   added ? "added" : ""
                 }`}
                 onClick={handleAddToCart}
-                disabled={
-                  isOutOfStock ||
-                  addingToCart
-                }
+                disabled={isOutOfStock || addingToCart}
               >
                 {addingToCart ? (
                   <>
@@ -811,14 +670,9 @@ function ProductDetails() {
                 type="button"
                 className="product-buy-now-btn"
                 onClick={handleBuyNow}
-                disabled={
-                  isOutOfStock ||
-                  addingToCart
-                }
+                disabled={isOutOfStock || addingToCart}
               >
-                {addingToCart
-                  ? "Processing..."
-                  : "Buy Now"}
+                {addingToCart ? "Processing..." : "Buy Now"}
               </button>
             </div>
 
@@ -828,10 +682,7 @@ function ProductDetails() {
                 <FiCheck />
 
                 {quantityInCart}{" "}
-                {quantityInCart === 1
-                  ? "item"
-                  : "items"}{" "}
-                already in your cart
+                {quantityInCart === 1 ? "item" : "items"} already in your cart
               </div>
             )}
 
@@ -842,10 +693,7 @@ function ProductDetails() {
 
                 <div>
                   <strong>Fast Delivery</strong>
-                  <span>
-                    Quick delivery to your
-                    doorstep
-                  </span>
+                  <span>Quick delivery to your doorstep</span>
                 </div>
               </div>
 
@@ -854,9 +702,7 @@ function ProductDetails() {
 
                 <div>
                   <strong>Secure Payment</strong>
-                  <span>
-                    100% secure checkout
-                  </span>
+                  <span>100% secure checkout</span>
                 </div>
               </div>
 
@@ -865,9 +711,7 @@ function ProductDetails() {
 
                 <div>
                   <strong>Easy Returns</strong>
-                  <span>
-                    Hassle-free return policy
-                  </span>
+                  <span>Hassle-free return policy</span>
                 </div>
               </div>
             </div>
@@ -882,18 +726,10 @@ function ProductDetails() {
               <h2>Product Specifications</h2>
 
               <div className="specifications-grid">
-                {Object.entries(
-                  specifications
-                ).map(([key, value]) => (
-                  <div
-                    className="specification-item"
-                    key={key}
-                  >
+                {Object.entries(specifications).map(([key, value]) => (
+                  <div className="specification-item" key={key}>
                     <span>{key}</span>
-
-                    <strong>
-                      {String(value)}
-                    </strong>
+                    <strong>{String(value)}</strong>
                   </div>
                 ))}
               </div>
@@ -907,10 +743,8 @@ function ProductDetails() {
 
             <div>
               <h3>Fast & Reliable Delivery</h3>
-
               <p>
-                Your order will be carefully
-                packed and delivered safely.
+                Your order will be carefully packed and delivered safely.
               </p>
             </div>
           </div>
@@ -920,10 +754,8 @@ function ProductDetails() {
 
             <div>
               <h3>Secure Shopping</h3>
-
               <p>
-                Your personal and payment
-                information stays protected.
+                Your personal and payment information stays protected.
               </p>
             </div>
           </div>
@@ -933,10 +765,8 @@ function ProductDetails() {
 
             <div>
               <h3>Easy Returns</h3>
-
               <p>
-                Shop confidently with our
-                customer-friendly return policy.
+                Shop confidently with our customer-friendly return policy.
               </p>
             </div>
           </div>
