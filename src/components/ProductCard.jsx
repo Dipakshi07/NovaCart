@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   FiHeart,
   FiShoppingCart,
@@ -46,11 +47,13 @@ function ProductCard({ product }) {
 
   const productName = name || title || "NovaCart Product";
 
-  // Always prefer the actual MongoDB ID.
+  // Always prefer MongoDB ID.
   const productId = String(_id || id || "");
 
-  // MongoDB ObjectId must contain exactly 24 hexadecimal characters.
+  // Validate MongoDB ObjectId.
   const isValidMongoId = /^[0-9a-fA-F]{24}$/.test(productId);
+
+  const productDetailsPath = `/product/${productId}`;
 
   const productImage =
     image ||
@@ -78,13 +81,20 @@ function ProductCard({ product }) {
 
   const cartItem = cart.find(
     (item) =>
-      String(item.product?._id || item._id || item.id) ===
-      productId
+      String(
+        item.product?._id ||
+        item.product?.id ||
+        item._id ||
+        item.id ||
+        ""
+      ) === productId
   );
 
   const quantityInCart = Number(cartItem?.quantity) || 0;
 
-  const isOutOfStock = Number(stock) <= 0;
+  const numericStock = Number(stock);
+  const isOutOfStock =
+    Number.isFinite(numericStock) && numericStock <= 0;
 
   const formattedPrice = new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -98,10 +108,7 @@ function ProductCard({ product }) {
     maximumFractionDigits: 0,
   }).format(numericOriginalPrice);
 
-  const productDetailsPath = isValidMongoId
-    ? `/product/${productId}`
-    : "#";
-
+  // Add to Cart
   const handleAddToCart = async () => {
     if (adding || isOutOfStock) return;
 
@@ -113,13 +120,16 @@ function ProductCard({ product }) {
     try {
       setAdding(true);
       setError("");
+      setAdded(false);
 
-      // Pass the real MongoDB ID to ShopContext.
-      await addToCart({
-        ...product,
-        _id: productId,
-        id: productId,
-      });
+      await addToCart(
+        {
+          ...product,
+          _id: productId,
+          id: productId,
+        },
+        1
+      );
 
       setAdded(true);
 
@@ -127,12 +137,17 @@ function ProductCard({ product }) {
         setAdded(false);
       }, 1500);
     } catch (err) {
-      setError(err.message || "Unable to add product to cart.");
+      console.error("Add to cart error:", err);
+
+      setError(
+        err.message || "Unable to add product to cart."
+      );
     } finally {
       setAdding(false);
     }
   };
 
+  // Wishlist
   const handleWishlist = async () => {
     if (!isValidMongoId) {
       setError("Invalid product ID. Please refresh the shop page.");
@@ -141,16 +156,23 @@ function ProductCard({ product }) {
 
     try {
       setError("");
+
       await toggleWishlist(productId);
     } catch (err) {
-      setError(err.message || "Unable to update wishlist.");
+      console.error("Wishlist error:", err);
+
+      setError(
+        err.message || "Unable to update wishlist."
+      );
     }
   };
 
   return (
     <article className="nova-product-card">
+
       {/* Product Image */}
       <div className="product-card-image-wrap">
+
         {isValidMongoId ? (
           <Link
             to={productDetailsPath}
@@ -202,7 +224,9 @@ function ProductCard({ product }) {
           }`}
           onClick={handleWishlist}
           disabled={!isValidMongoId}
-          aria-label={`${wishlisted ? "Remove" : "Add"} ${productName} ${
+          aria-label={`${
+            wishlisted ? "Remove" : "Add"
+          } ${productName} ${
             wishlisted ? "from" : "to"
           } wishlist`}
           aria-pressed={Boolean(wishlisted)}
@@ -222,7 +246,7 @@ function ProductCard({ product }) {
           </Link>
         )}
 
-        {/* Out Of Stock */}
+        {/* Out of Stock */}
         {isOutOfStock && (
           <div className="product-card-out-of-stock">
             Currently unavailable
@@ -232,7 +256,8 @@ function ProductCard({ product }) {
 
       {/* Product Details */}
       <div className="product-card-details">
-        {/* Category + Rating */}
+
+        {/* Category and Rating */}
         <div className="product-card-category-row">
           <span className="product-card-category">
             {category}
@@ -291,7 +316,7 @@ function ProductCard({ product }) {
           )}
         </div>
 
-        {/* Add To Cart */}
+        {/* Add to Cart */}
         <button
           type="button"
           className={`product-card-add-btn ${
@@ -323,6 +348,7 @@ function ProductCard({ product }) {
             <>
               <FiShoppingCart />
               Add More
+              <FiArrowUpRight className="product-card-btn-arrow" />
             </>
           ) : (
             <>
@@ -333,6 +359,7 @@ function ProductCard({ product }) {
           )}
         </button>
 
+        {/* Error */}
         {error && (
           <p
             className="product-card-error"
